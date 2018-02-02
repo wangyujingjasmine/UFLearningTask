@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from model import ResNet18
+from model import CIFAR10NET
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 import torch.onnx
@@ -20,7 +20,6 @@ trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=128,
                                           shuffle=True, num_workers=2)
-
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=128,
@@ -29,7 +28,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=128,
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
-net = ResNet18()
+net = CIFAR10NET()
 
 if torch.cuda.is_available():
     net.cuda()
@@ -38,8 +37,6 @@ if torch.cuda.is_available():
 # dumy_input = Variable(torch.randn(128, 3, 32, 32)).cuda()
 # torch.onnx.export(net, dumy_input, 'resnet.proto', verbose=True)
 # writer.add_graph_onnx('resnet.proto')
-
-
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-4)
@@ -69,12 +66,12 @@ def train(epoch):
         counter_num = batch_idx+len(trainloader)*epoch
         print(counter_num,
               batch_idx, len(trainloader),
-              'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+              'Train Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (train_loss/(batch_idx+1),
                100.*correct/total, correct, total))
 
-        writer.add_scalar('trainloss', train_loss / (batch_idx + 1), counter_num)
-        writer.add_scalar('trainAcc', 1.*correct/total, counter_num)
+        writer.add_scalar('train/loss', train_loss / (batch_idx + 1), counter_num)
+        writer.add_scalar('train/Acc', 1.*correct/total, counter_num)
         # for name, param in net.named_parameters():
         #     writer.add_histogram(name, param.clone().cpu().data.numpy(), counter_num)
 
@@ -97,10 +94,10 @@ def test(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
         counter_num = batch_idx+len(testloader)*epoch
-        print(counter_num ,batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        print(counter_num ,batch_idx, len(testloader), 'Text Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-        writer.add_scalar('testloss', test_loss / (batch_idx + 1), counter_num)
-        writer.add_scalar('testAcc', 1. * correct / total, counter_num)
+        writer.add_scalar('test/loss', test_loss / (batch_idx + 1), counter_num)
+        writer.add_scalar('test/Acc', 1. * correct / total, counter_num)
 if __name__ == '__main__':
 
     for epoch in range(0, 100):
