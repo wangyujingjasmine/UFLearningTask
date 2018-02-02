@@ -7,6 +7,7 @@ from model import CIFAR10NET
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 import torch.onnx
+import shutil
 
 writer = SummaryWriter('log')
 
@@ -14,15 +15,15 @@ best_acc = 0
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+     transforms.Normalize((0, 0, 0), (0.5, 0.5, 0.5))])
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=256,
                                           shuffle=True, num_workers=2)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=128,
+testloader = torch.utils.data.DataLoader(testset, batch_size=256,
                                          shuffle=False, num_workers=2)
 
 classes = ('plane', 'car', 'bird', 'cat',
@@ -66,7 +67,8 @@ def train(epoch):
         counter_num = batch_idx+len(trainloader)*epoch
         print(counter_num,
               batch_idx, len(trainloader),
-              'Train Loss: %.3f | Acc: %.3f%% (%d/%d)'
+              'Train epoch', epoch,
+              ' Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (train_loss/(batch_idx+1),
                100.*correct/total, correct, total))
 
@@ -94,13 +96,56 @@ def test(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
         counter_num = batch_idx+len(testloader)*epoch
-        print(counter_num ,batch_idx, len(testloader), 'Text Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        print(counter_num ,batch_idx, len(testloader),
+              'Text epoch', epoch,
+              ' Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
         writer.add_scalar('test/loss', test_loss / (batch_idx + 1), counter_num)
         writer.add_scalar('test/Acc', 1. * correct / total, counter_num)
+
+
+def save_checkpoint(state, is_best, filename='model_save\\checkpoint.pth.tar'):
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, 'model_save\\model_best.pth.tar')
+
+
 if __name__ == '__main__':
 
-    for epoch in range(0, 100):
+    #loading_mode = 'No'
+    #loading_mode = 'The best'
+    loading_mode = 'The last'
+
+    if loading_mode == 'The best':
+        name = 'model_save\\model_best.pth.tar'
+        str = "=> loading checkpoint with the best performance."
+    if loading_mode == 'The last':
+        name = 'model_save\\checkpoint.pth.tar'
+        str = "=> loading checkpoint with the last."
+    if loading_mode == 'No':
+        name = False
+        str = 'Not load.'
+    if name:
+        print(str)
+        checkpoint = torch.load(name)
+        start_epoch = checkpoint['epoch']
+        net.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        print("=> loaded checkpoint (epoch %d)" % checkpoint['epoch'])
+    else:
+        print(str)
+        start_epoch = 0
+
+    for epoch in range(start_epoch+1, start_epoch + 1 + 10):
         train(epoch)
         test(epoch)
+
+        # save model (only parameters)
+        save_checkpoint({
+            'epoch': epoch,
+            'state_dict': net.state_dict(),
+            #'best_prec1': best_prec1,
+            'optimizer' : optimizer.state_dict(),
+        }, True)
     writer.close()
