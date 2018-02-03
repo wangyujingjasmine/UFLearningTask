@@ -129,5 +129,5 @@ class Net(nn.Module):
 
 def CIFAR10NET():
     pass
-    return Net()
-    #return ResNet(BasicBlock, [3,3,3])
+    #return Net()
+    return ResNet(BasicBlock, [3,3,3])
