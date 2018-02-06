@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from model import CIFAR10NET
+from model import FasionMNIST_NET
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 import torch.onnx
@@ -17,19 +17,23 @@ transform = transforms.Compose(
     [transforms.ToTensor(),
      transforms.Normalize((0, 0, 0), (0.5, 0.5, 0.5))])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=256,
+trainset = torchvision.datasets.FashionMNIST(root='./data', train=True,
+                                             transform=transform,
+                                             target_transform=None,
+                                             download=True)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=1024,
                                           shuffle=True, num_workers=2)
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=256,
+testset = torchvision.datasets.FashionMNIST(root='./data', train=False,
+                                            transform=transform,
+                                            target_transform=None,
+                                            download=True)
+testloader = torch.utils.data.DataLoader(testset, batch_size=1024,
                                          shuffle=False, num_workers=2)
 
-classes = ('plane', 'car', 'bird', 'cat',
-           'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress',
+           'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot')
 
-net = CIFAR10NET()
+net = FasionMNIST_NET()
 
 if torch.cuda.is_available():
     net.cuda()
@@ -64,7 +68,7 @@ def train(epoch):
         _, predicted = torch.max(outputs.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
-        counter_num = batch_idx+len(trainloader)*epoch
+        counter_num = batch_idx+len(trainloader)*(epoch-1)
         print(counter_num,
               batch_idx, len(trainloader),
               'Train epoch', epoch,
@@ -74,6 +78,7 @@ def train(epoch):
 
         writer.add_scalar('train/loss', train_loss / (batch_idx + 1), counter_num)
         writer.add_scalar('train/Acc', 1.*correct/total, counter_num)
+    writer.add_scalar('Acc/epochtrain', 1. * correct / total, epoch)
         # for name, param in net.named_parameters():
         #     writer.add_histogram(name, param.clone().cpu().data.numpy(), counter_num)
 
@@ -95,7 +100,7 @@ def test(epoch):
         _, predicted = torch.max(outputs.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
-        counter_num = batch_idx+len(testloader)*epoch
+        counter_num = batch_idx+len(testloader)*(epoch-1)
         print(counter_num ,batch_idx, len(testloader),
               'Text epoch', epoch,
               ' Loss: %.3f | Acc: %.3f%% (%d/%d)'
@@ -103,7 +108,7 @@ def test(epoch):
 
         writer.add_scalar('test/loss', test_loss / (batch_idx + 1), counter_num)
         writer.add_scalar('test/Acc', 1. * correct / total, counter_num)
-
+    writer.add_scalar('Acc/epochtest', 1. * correct / total, epoch)
 
 def save_checkpoint(state, is_best, filename='model_save\\checkpoint.pth.tar'):
     torch.save(state, filename)
@@ -113,9 +118,9 @@ def save_checkpoint(state, is_best, filename='model_save\\checkpoint.pth.tar'):
 
 if __name__ == '__main__':
 
-    #loading_mode = 'No'
+    loading_mode = 'No'
     #loading_mode = 'The best'
-    loading_mode = 'The last'
+    #loading_mode = 'The last'
 
     if loading_mode == 'The best':
         name = 'model_save\\model_best.pth.tar'
@@ -137,7 +142,8 @@ if __name__ == '__main__':
         print(str)
         start_epoch = 0
 
-    for epoch in range(start_epoch+1, start_epoch + 1 + 10):
+        n_epoch = 50
+    for epoch in range(start_epoch+1, start_epoch + 1 + n_epoch):
         train(epoch)
         test(epoch)
 
